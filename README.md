@@ -1,4 +1,4 @@
-**backup.py v0.9** - Generador de copias de seguridad incrementales.<br />
+**backup.py** - Generador de copias de seguridad incrementales.<br />
 por Oliver Etchebarne - Paperclip X10<br />
 http://drmad.org - http://x10.pe<br />
 
