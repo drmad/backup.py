@@ -2,14 +2,11 @@
 por Oliver Etchebarne - Paperclip X10<br />
 http://drmad.org - http://x10.pe<br />
 
-<p>
-Copia el conteido de cada ruta especificada dentro de la carpeta destino,
-comprimiendo los ficheros y preservando dueños y permisos.
-</p>
+<p>Copia el conteido de cada ruta especificada dentro de la carpeta destino, comprimiendo los ficheros y preservando dueños y permisos. No borra los ficheros si sus originales han sido borrados.</p>
 
-<p>Este script no borra los ficheros si sus originales si lo han sido borrados.</p>
+<p>Debería de trabaja en cualquier distro de Linux con Python 3</p>
 
-<p>backup.py [opciones] ruta [ruta..] destino</p>
+<pre>backup.py [opciones] ruta [ruta...] destino</pre>
 
 Opciones:
 <pre>
