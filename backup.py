@@ -1,11 +1,26 @@
 #!/usr/bin/env python3
+'''
+backup.py
+=========
+
+Generador de copias de seguridad incrementales.
+por Oliver Etchebarne - Paperclip X10
+http://drmad.org - http://x10.pe
+
+Genera copias de seguridad incrementales de cada ruta especificada, dentro de la carpeta destino. Comprime los ficheros y preservan dueños y permisos. No borra los ficheros si sus originales han sido borrados.
+
+Debería de trabaja en cualquier distro de Linux con Python > 3.2
+
+https://github.com/drmad/backup.py
+'''
+
 import subprocess, sys, re, os
 import gzip, bz2, shutil, stat
 import time
 
 from datetime import datetime, timedelta
 
-VERSION = 0.9
+VERSION = 0.91
 
 # Parámetros por defecto, con su ayuda. 
 DEFAULT_PARAMETERS = dict(
@@ -21,7 +36,9 @@ DEFAULT_PARAMETERS = dict(
     
     one_dir_per_param = ("¿Generar una carpeta por parámetro? 'False' crea la estructura completa de directorios.", False),
     
-    full_backup = ("¿Generar un backup completo? 'False' crea un backup incremental.", False),
+    full_backup = ("¿Generar un backup completo? 'False' crea un backup incremental.", False ),
+    
+    follow_symlinks = ( "¿'find' debe seguir enlaces simbólicos?", False ),
     
     debug_level = ("Nivel de depuración (0 a 2)", 1),
     
@@ -29,26 +46,37 @@ DEFAULT_PARAMETERS = dict(
 )
 
 def fail ( reason ):
+    # Grabamos en el log
     log ( 'ERROR: ' + reason )
+    
+    # También escribimos en stderr. Puede causar duplicados, pero meh...
+    sys.stderr.write ( 'ERROR: {}\n'.format( reason ) )
+    
+    # Bu-bye
     sys.exit ( 1 )
 
 def log ( what, verbose = False, no_date = False ):
     ''' Graba información de registro. Lo "verbose" se procesa, si debug_level
         es 2. '''
 
+    # Añadimos una fecha?
+    if not no_date:
+        what = str(datetime.now()) + ' ' + what
+
+    # Siempre guardamos en el fichero todo, sin importar el nivel de 'verbose'
+    try:
+        P['debug_file_fd'].write ( what + "\n" )
+    except:
+        pass
+
+    # En la salida estándar, solo mostramos lo requerido.        
     if verbose and P['debug_level'] < 2:
         return
     
     if P['debug_level'] == 0:
         return
 
-    if not no_date:
-        what = str(datetime.now()) + ' ' + what
-    
-    try:
-        P['debug_file_fd'].write ( what + "\n" )
-    except:
-        print ( what )
+    print ( what )
 
 def is_excluded ( path ):
     for regexp in P['exclude_regexp']:
@@ -98,7 +126,7 @@ def scan_files ( path ):
 
     try:    
         raw = subprocess.check_output (
-          [ 'find', '-L', path, '-type', 'f', '-printf', '%C@ %P\n' ]
+          [ 'find', '-L' if P['follow_symlinks'] else '', path, '-type', 'f', '-printf', '%C@ %P\n' ]
         )
     except subprocess.CalledProcessError as e: 
         fail ( "El proceso 'find' devolvió error. Saliendo" )
@@ -180,10 +208,11 @@ while (1):
                 ( '-n', 'No comprime los ficheros.' ),
                 ( '-f', 'Crea una copia completa, en vez de incremental.'),
                 ( '-x pat', 'Excluye los ficheros que encajan con el patrón de shell "pat". Se puede especificar varias veces.' ),
-                ( '-l fich', 'Graba los mensajes en el fichero "fich". Por defecto lo muestra por la salida estándar.' ),
-                ( '-d', 'Detalla cada fichero que está siendo procesado.' ),
-                ( '-q', 'No muestra mensaje alguno.' ),
-                ( '-s', 'Crea un directorio por cada ruta especificada, en vez de recrear el árbol completo en el directorio destino.' ),
+                ( '-l fich', 'Graba el registro de actividad completo en el fichero "fich".' ),
+                ( '-d', 'Muestra mayor información en la salida estándar.' ),
+                ( '-q', 'Suprime la salida de información en la salida estándar.' ),
+                ( '-o', 'Crea un directorio por cada ruta especificada, en vez de recrear el árbol completo en el directorio destino.' ),
+                ( '-F', 'Fuerza a "find" a seguir enlaces simbólicos' ), 
                 ( '-g', 'Genera un fichero de configuración con las opciones especificadas en la línea de comandos.' ),
                 ( '-c conf', 'Usa los parámetros almacenados en el fichero de configuración "conf". Las opciones especificadas después de esta opción reemplazarán a las guardadas en el fichero.'),
                 ( '--help', 'Esta ayuda.' ),
@@ -236,6 +265,10 @@ while (1):
             # Backup completo
             elif a == 'f':
                 P['full_backup'] = True
+
+            # Sigue enlaces simbólicos
+            elif a == 'F':
+                P['follow_symlinks'] = True
                 
             # Patron a excluir
             elif a == 'x':    
@@ -263,8 +296,12 @@ while (1):
                 P['debug_level'] = 0
                 
             # Una carpeta por ruta?
-            elif a == 's':
+            elif a == 'o':
                 P['one_dir_per_param'] = True
+
+            # Sigue symlinks?
+            elif a == 's':
+                P['follow_symlinks'] = True
                 
             # Bzip?
             elif a == 'b':
@@ -321,9 +358,9 @@ if print_config:
     sys.exit()
 
 
-# Abrimos el fichero de registro
+# Abrimos el fichero de registro, sin buffer.
 try:
-    P['debug_file_fd'] = open ( P['debug_file'], 'w' )
+    P['debug_file_fd'] = open ( P['debug_file'], 'a', 1 )
 except Exception as e:
     fail ( 'No se pudo abrir el fichero de registro: ' + str (e) )
 
@@ -400,8 +437,7 @@ for path in P['paths']:
         target_path = os.path.join ( P['target'], path[1:] )
 
 
-    log ( '{}: {} ficheros'.format ( path, len(files_data) ), verbose=True )
-    log ( '{}: Iniciando copia de seguridad. Destino: "{}"'.format ( path, target_path ) )
+    log ( '{}: {} ficheros. Destino: "{}", iniciando copia.'.format ( path, len(files_data), target_path ) )
 
     # Aquí irá el registro con los nuevos timestamps
     new_registry = registry.copy()
@@ -445,7 +481,7 @@ for path in P['paths']:
                 target_module = gzip.GzipFile
             else:   
                 # Sin compresión. Copiamos
-                target_filename = False
+                target_module = False
 
             # Ya que también copiamos los atributos del fichero, puede sucede
             # que cuando actualizamos, el fichero anterior no tiene permisos
@@ -458,19 +494,22 @@ for path in P['paths']:
                 pass
 
                 
-            if target_filename:
+            if target_module:
                 # Intentamos abrir el fichero
                 try:
-                    target_fd = target_module ( target_filename, 'wb' )
+                    with target_module ( target_filename, 'wb' ) as target_fd, open ( source_filename, 'rb' ) as source_fd:
+                        
+                        # Procesamos en 9000k a la vez (10 chunks de 900k, 
+                        # el usado por la máxima compresión del gzip. Debe de
+                        # ser igual para bzip2)
+                        while 1:
+                            count = target_fd.write (source_fd.read(9216000) )
+                            if count == 0:
+                                break;
+                        
                 except Exception as e:
-                    fail ( 'No se pudo abrir el fichero destino: ' + str(e) )
+                    fail ( 'No se pudo realizar la copia: ' + str(e) )
                     
-                # Y compriomimos todo
-                source_fd = open( source_filename, 'rb' )
-                target_fd.write ( source_fd.read() )
-                source_fd.close()
-                
-                target_fd.close()
             else:
                 # Si no hay target, es una simple copia.
                 shutil.copy ( source_filename, target_filename )
@@ -490,5 +529,5 @@ for path in P['paths']:
     # Calculamos el tiempo tomado
     elapsed_time = str(timedelta ( seconds = time.time() - start_time ))
     
-    log ( 'Finalizado. Nuevos: {}, Actualizados: {}, Duración: {}'. format ( c_new, c_updated, elapsed_time ) )
+    log ( '{}: Finalizado. Nuevos: {}, Actualizados: {}, Duración: {}'. format ( path, c_new, c_updated, elapsed_time ) )
     

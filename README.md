@@ -1,10 +1,13 @@
-**backup.py** - Generador de copias de seguridad incrementales.<br />
+backup.py
+=========
+
+Generador de copias de seguridad incrementales.<br />
 por Oliver Etchebarne - Paperclip X10<br />
 http://drmad.org - http://x10.pe<br />
 
-<p>Copia el conteido de cada ruta especificada dentro de la carpeta destino, comprimiendo los ficheros y preservando dueños y permisos. No borra los ficheros si sus originales han sido borrados.</p>
+<p>Genera copias de seguridad incrementales de cada ruta especificada, dentro de la carpeta destino. Comprime los ficheros y preservan dueños y permisos. No borra los ficheros si sus originales han sido borrados.</p>
 
-<p>Debería de trabaja en cualquier distro de Linux con Python 3</p>
+<p>Debería de trabaja en cualquier distro de Linux con Python > 3.2</p>
 
 <pre>backup.py [opciones] ruta [ruta...] destino</pre>
 
@@ -16,12 +19,12 @@ Opciones:
  -f         Crea una copia completa, en vez de incremental. 
  -x pat     Excluye los ficheros que encajan con el patrón de shell "pat". Se 
             puede especificar varias veces. 
- -l fich    Graba los mensajes en el fichero "fich". Por defecto lo muestra por la 
-            salida estándar. 
- -d         Detalla cada fichero que está siendo procesado. 
- -q         No muestra mensaje alguno. 
- -s         Crea un directorio por cada ruta especificada, en vez de recrear el 
+ -l fich    Graba el registro de actividad completo en el fichero "fich". 
+ -d         Muestra mayor información en la salida estándar. 
+ -q         Suprime la salida de información en la salida estándar. 
+ -o         Crea un directorio por cada ruta especificada, en vez de recrear el 
             árbol completo en el directorio destino. 
+ -F         Fuerza a "find" a seguir enlaces simbólicos 
  -g         Genera un fichero de configuración con las opciones especificadas 
             en la línea de comandos. 
  -c conf    Usa los parámetros almacenados en el fichero de configuración 
