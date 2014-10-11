@@ -125,9 +125,9 @@ def save_registry ( path, registry ):
 def scan_files ( path ):
     ''' Escanea la ruta, y devuelve sus ficheros con su timestamp '''
 
-    try:    
+    try:  
         raw = subprocess.check_output (
-          [ 'find', '-L' if P['follow_symlinks'] else '', path, '-type', 'f', '-printf', '%C@ %P\n' ]
+          [ 'find', '-L' if P['follow_symlinks'] else '-P', path, '-type', 'f', '-printf', '%C@ %P\n' ]
         )
     except subprocess.CalledProcessError as e: 
         fail ( "El proceso 'find' devolvió error. Saliendo" )
