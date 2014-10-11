@@ -65,7 +65,8 @@ def log ( what, verbose = False, no_date = False ):
 
     # Siempre guardamos en el fichero todo, sin importar el nivel de 'verbose'
     try:
-        P['debug_file_fd'].write ( what + "\n" )
+        if P['debug_file_fd']:
+            P['debug_file_fd'].write ( what + "\n" )
     except:
         pass
 
@@ -360,7 +361,8 @@ if print_config:
 
 # Abrimos el fichero de registro, sin buffer.
 try:
-    P['debug_file_fd'] = open ( P['debug_file'], 'a', 1 )
+    if P['debug_file']:
+        P['debug_file_fd'] = open ( P['debug_file'], 'a', 1 )
 except Exception as e:
     fail ( 'No se pudo abrir el fichero de registro: ' + str (e) )
 
