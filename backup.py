@@ -4,8 +4,8 @@ backup.py
 =========
 
 Generador de copias de seguridad incrementales.
-por Oliver Etchebarne - Paperclip X10
-http://drmad.org - http://x10.pe
+por Oliver Etchebarne Bejarano
+http://drmad.org
 
 Genera copias de seguridad incrementales de cada ruta especificada, dentro de la carpeta destino. Comprime los ficheros y preservan dueños y permisos. No borra los ficheros si sus originales han sido borrados.
 
@@ -20,7 +20,7 @@ import time
 
 from datetime import datetime, timedelta
 
-VERSION = 0.91
+VERSION = 0.99
 
 # Parámetros por defecto, con su ayuda. 
 DEFAULT_PARAMETERS = dict(
@@ -30,8 +30,6 @@ DEFAULT_PARAMETERS = dict(
     
     compressor = ("Algoritmo de compresión: 'gzip', 'bzip', o '' (solo copia).", 'gzip'),
     
-    registry_file = ("Nombre del fichero de registro.", '.backup.info'),
-
     exclude = ("Patrones de exclusión.", []),
     
     one_dir_per_param = ("¿Generar una carpeta por parámetro? 'False' crea la estructura completa de directorios.", False),
@@ -85,49 +83,21 @@ def is_excluded ( path ):
         if regexp.search ( path ):
             return True
 
-def get_registry ( path ):
-    regpath = os.path.join ( path, P['registry_file'] )
-
-    # Si existe el ficheor de registro, lo leemos
-    if os.path.exists ( regpath ):
-        with open(regpath) as f:
-            return eval(f.read())
-
-    else:
-        return {}
-
 def header( prepend = '' ):
     ''' Devuelve una cabecera para imprimir '''
     h = ''
     h = prepend + 'backup.py v{} - Generador de copias de seguridad incrementales.\n'.format(VERSION)
-    h += prepend + 'por Oliver Etchebarne - Paperclip X10\n'
-    h += prepend + 'http://drmad.org - http://x10.pe\n'
+    h += prepend + 'por Oliver Etchebarne Bejarano\n'
+    h += prepend + 'http://drmad.org\n'
     
     return h
-
-def save_registry ( path, registry ):
-    ''' Graba un fichero de registro '''
-    regpath = os.path.join ( path, P['registry_file'] )
-    
-    with open ( regpath, 'w' ) as f:
-        f.write ( header ('# ') )
-        f.write ( '\n# Fichero de registro de fechas de modificación. NO EDITAR\n')
-        f.write ( '# {} - {}\n'.format ( path, datetime.today().strftime ('%c') ) )
-        
-        f.write ( '{\n' )
-        
-        for fn, timestamp in registry.items():
-            f.write ( "  '{}': '{}',\n".format ( fn.replace("'", "\\'"), timestamp ) )
-
-        f.write ('}\n')
-            
 
 def scan_files ( path ):
     ''' Escanea la ruta, y devuelve sus ficheros con su timestamp '''
 
     try:  
         raw = subprocess.check_output (
-          [ 'find', '-L' if P['follow_symlinks'] else '-P', path, '-type', 'f', '-printf', '%C@ %P\n' ]
+          [ 'find', '-L' if P['follow_symlinks'] else '-P', path, '-type', 'f', '-printf', '%T@ %P\n' ]
         )
     except subprocess.CalledProcessError as e: 
         fail ( "El proceso 'find' devolvió error. Saliendo" )
@@ -366,11 +336,6 @@ try:
 except Exception as e:
     fail ( 'No se pudo abrir el fichero de registro: ' + str (e) )
 
-
-# Añadimos el fichero de registro a la lista de exclusión. Esto
-# lo hacemos después de haber grabado el fichero de configuración.
-P['exclude'].append ( P['registry_file'] )
-
 # Compilamos los patrones de exclusión
 P['exclude_regexp'] = []
 for pat in P['exclude']:
@@ -388,15 +353,29 @@ for pat in P['exclude']:
     P['exclude_regexp'].append ( re.compile(pat) )
 
 
+# Definimos qué compresor vamos a usar. 
+target_extension = ''
+if P['compressor'] == 'bzip':
+    target_extension = '.bz2'
+    target_module = bz2.BZ2File
+elif P['compressor'] == 'gzip':
+    target_extension = '.gz'
+    target_module = gzip.GzipFile
+else:   
+    # Sin compresión. Copiamos
+    target_module = False
+
+
 # Empezamos el proceso
 log ( header(), no_date = True ) 
 
+log ( 'Línea de comandos: {}'.format ( ' '.join(sys.argv) ), verbose=True )
+
 if ( P['full_backup'] ):
-    log ( 'Ejecutando copia completa la siguiente línea de comandos:', verbose=True )
+    log ( 'Iniciando copia completa.', verbose=True )
 else:
-    log ( 'Ejecutando copia incremental con la siguiente línea de comandos:', verbose=True )
+    log ( 'Iniciando copia incremental.', verbose=True )
     
-log ( ' {}'.format ( ' '.join(sys.argv) ), verbose=True )
 
 for path in P['paths']:
 
@@ -406,18 +385,6 @@ for path in P['paths']:
     # Grabamos el momento que se inició el backup.
     start_time = time.time()
 
-    # Leemos su fichero de registro, si existe. 
-    if ( P['full_backup'] ):
-        registry = {}
-    else:
-        registry = get_registry ( path )
-
-
-
-    # Escaneamos el contenido de 'path'    
-    log ( '{}: Escaneando ruta...'.format ( path ), verbose=True )
-    files_data = scan_files ( path )
-    
     # Calculamnos la carpeta destino, dependiendo
     # si quieremos solo una, o toda la ruta completa
 
@@ -438,33 +405,55 @@ for path in P['paths']:
         # ( http://docs.python.org/3.2/library/os.path.html#os.path.join )    
         target_path = os.path.join ( P['target'], path[1:] )
 
+    # Primero, escaneamos el origen
+    log ( '{}: Escaneando origen...'.format ( path ), verbose=True )
+    files_data = scan_files ( path )
+
+    # Luego escaneamos el destino, si no pide un full_backup
+    if ( P['full_backup'] ):
+        registry = {}
+    else:
+        log ( '{}: Escaneando destino...'.format ( path ), verbose=True )
+        registry = scan_files ( target_path )
+
 
     log ( '{}: {} ficheros. Destino: "{}", iniciando copia.'.format ( path, len(files_data), target_path ) )
 
     # Aquí irá el registro con los nuevos timestamps
     new_registry = registry.copy()
     
+    # Aqui quedarán los ficheros por borrar
+    erase_list = registry.copy()
+    
     # Contadores
     c_new = 0
     c_updated = 0
+    c_deleted = 0
 
     # Escaneamos sus ficheros
     for filename, timestamp in files_data.items():
         # No existe, o ha variado?
         copy = False
         
-        if not filename in registry:
-            copy = "Guardando"
+        if not filename + target_extension in registry:
+            # Nuevo fichero. 
+            copy = "GUARDANDO"
             c_new += 1
-        elif registry [ filename ] != timestamp:
-            copy = "Actualizando"
+        elif registry [ filename + target_extension ] != timestamp:
+        
+            # Actualizando uno antiguo
+            copy = "ACTUALIZANDO"
             c_updated += 1
+            del erase_list [ filename + target_extension ]
+        else:
+            # Igual, si no está modificado, lo borramos del erase_list
+            del erase_list [ filename + target_extension ]
 
         if copy:
             # Empezamos la generación de la copia de seguridad.
-            target_filename = os.path.join (  target_path, filename )
+            target_filename = os.path.join ( target_path, filename )
 
-            log ( "- {} {}...".format(copy, filename ), verbose = True )
+            log ( "{} {}...".format(copy, filename ), verbose = True )
 
             # Creamos la carpeta destino, si no existe. Con algo de suerte,
             # podemos ignorar tranquilamente los errores
@@ -475,19 +464,9 @@ for path in P['paths']:
 
             source_filename = os.path.join ( path, filename )
             
-            if P['compressor'] == 'bzip':
-                target_filename += '.bz2'
-                target_module = bz2.BZ2File
-            elif P['compressor'] == 'gzip':
-                target_filename += '.gz'
-                target_module = gzip.GzipFile
-            else:   
-                # Sin compresión. Copiamos
-                target_module = False
-
             # Ya que también copiamos los atributos del fichero, puede sucede
             # que cuando actualizamos, el fichero anterior no tiene permisos
-            # de escritura. Asi que le forzamos primero
+            # de escritura. Asi que le damos permisos de escritura primero.
             
             # Si no podemos camiarle, no podemos psss :)
             try:
@@ -495,8 +474,11 @@ for path in P['paths']:
             except:
                 pass
 
-                
+
+            # Comprimimos?                
             if target_module:
+                target_filename += target_extension
+            
                 # Intentamos abrir el fichero
                 try:
                     with target_module ( target_filename, 'wb' ) as target_fd, open ( source_filename, 'rb' ) as source_fd:
@@ -519,17 +501,33 @@ for path in P['paths']:
             # Después de copiar, actualizamos permisos y dueño
             st = os.stat ( source_filename )
 
-            os.chmod ( target_filename, st.st_mode )
-            os.chown ( target_filename, st.st_uid, st.st_gid )
+            try:
+                #os.chmod ( target_filename, st.st_mode )
+                shutil.copystat ( source_filename, target_filename )
+                os.chown ( target_filename, st.st_uid, st.st_gid )
+            except PermissionError as e:
+                # No pudimos cambiarle de permisos!
+                log  ( 'ADVERTENCIA: No pude copiar permisos ni dueño a {} ({}). Continuando.'.format ( target_filename, str(e) ) )
             
             # Y actualizamos el fichero de registro
             new_registry [ filename ] = timestamp
 
-    # Regeneramos el registro, con las nuevas fechas de actualización.
-    save_registry ( path, new_registry )
+    # Hay por borrar?
+    if erase_list:
+        # Calculamos cuál sería el fichero destino
+        c_deleted = len ( erase_list )
+        for filename in erase_list.keys():
+                
+            # borramos
+            log ( "BORRANDO {}...".format( filename ), verbose = True )
+            try:
+                target_filename = os.path.join ( target_path, filename )
+                os.unlink ( target_filename )
+            except Exception as e:
+                log  ( 'ADVERTENCIA: No pude eliminar {} ({}). Continuando.'.format ( filename, str(e) ) )
     
     # Calculamos el tiempo tomado
     elapsed_time = str(timedelta ( seconds = time.time() - start_time ))
     
-    log ( '{}: Finalizado. Nuevos: {}, Actualizados: {}, Duración: {}'. format ( path, c_new, c_updated, elapsed_time ) )
+    log ( '{}: Finalizado. {} nuevos, {} actualizados, {} borrados. Duración: {}'. format ( path, c_new, c_updated, c_deleted, elapsed_time ) )
     
