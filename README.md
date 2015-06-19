@@ -5,7 +5,7 @@ Generador de copias de seguridad incrementales.<br />
 por Oliver Etchebarne - Paperclip X10<br />
 http://drmad.org - http://x10.pe<br />
 
-<p>Genera copias de seguridad incrementales de cada ruta especificada, dentro de la carpeta destino. Comprime los ficheros y preservan dueños y permisos. No borra los ficheros si sus originales han sido borrados.</p>
+<p>Genera copias de seguridad incrementales de cada ruta especificada, dentro de la carpeta destino. Comprime los ficheros y preservan dueños y permisos.</p>
 
 <p>Debería de trabaja en cualquier distro de Linux con Python > 3.2</p>
 
