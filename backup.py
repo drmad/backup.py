@@ -492,20 +492,20 @@ for path in P['paths']:
                                 break;
                         
                 except Exception as e:
-                    fail ( 'No se pudo realizar la copia: ' + str(e) )
+                    log ( 'ADVERTENCIA: No se pudo copiar {}: {} '.format ( filename, str(e)) )
                     
             else:
                 # Si no hay target, es una simple copia.
                 try:
                     shutil.copy ( source_filename, target_filename )
                 except Exception as e:
-                    fail ( 'No se pudo realizar la copia: ' + str(e) )
+                    log ( 'ADVERTENCIA: No se pudo copiar {}: {} '.format ( filename, str(e)) )
                 
-            # Después de copiar, actualizamos permisos y dueño
-            st = os.stat ( source_filename )
 
             try:
-                #os.chmod ( target_filename, st.st_mode )
+                # Después de copiar, actualizamos permisos y dueño
+                st = os.stat ( source_filename )
+
                 shutil.copystat ( source_filename, target_filename )
                 os.chown ( target_filename, st.st_uid, st.st_gid )
             except PermissionError as e:
