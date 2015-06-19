@@ -496,7 +496,10 @@ for path in P['paths']:
                     
             else:
                 # Si no hay target, es una simple copia.
-                shutil.copy ( source_filename, target_filename )
+                try:
+                    shutil.copy ( source_filename, target_filename )
+                except Exception as e:
+                    fail ( 'No se pudo realizar la copia: ' + str(e) )
                 
             # Después de copiar, actualizamos permisos y dueño
             st = os.stat ( source_filename )
