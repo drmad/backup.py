@@ -439,7 +439,8 @@ for path in P['paths']:
     # Escaneamos sus ficheros
     for filename, timestamp in files_data.items():
     
-        # De este timestamp
+        # De este timestamp sacamos el usuario, grupo, y permisos
+        # TODO
     
         # No existe, o ha variado?
         copy = False
