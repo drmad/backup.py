@@ -48,10 +48,7 @@ def fail ( reason ):
     log ( 'ERROR: ' + reason )
     
     # También escribimos en stderr. Puede causar duplicados, pero meh...
-    sys.stderr.write ( 'ERROR: {}\n'.format( reason ) )
-    
-    # Bu-bye
-    sys.exit ( 1 )
+    sys.exit ( 'ERROR: {}\n'.format( reason ) )
 
 def log ( what, verbose = False, no_date = False ):
     ''' Graba información de registro. Lo "verbose" se procesa, si debug_level
@@ -248,8 +245,11 @@ while (1):
                 except IndexError:
                     fail ( 'Falta un patrón de exclusión.' )
 
-                
-                P['exclude'].append ( pat )
+                # Si hay ',' en el patron de exclusión, los dividimos
+                if ',' in pat:
+                    P['exclude'].extend ( pat.split(',') )
+                else:
+                    P['exclude'].append ( pat )
 
             # Fichero de registro
             elif a == 'l':
@@ -405,6 +405,12 @@ for path in P['paths']:
         # ( http://docs.python.org/3.2/library/os.path.html#os.path.join )    
         target_path = os.path.join ( P['target'], path[1:] )
 
+    # Creamos la carpeta destino. Para que el find no falle
+    try:
+        os.makedirs ( target_path ) 
+    except:
+        pass
+
     # Primero, escaneamos el origen
     log ( '{}: Escaneando origen...'.format ( path ), verbose=True )
     files_data = scan_files ( path )
@@ -432,6 +438,9 @@ for path in P['paths']:
 
     # Escaneamos sus ficheros
     for filename, timestamp in files_data.items():
+    
+        # De este timestamp
+    
         # No existe, o ha variado?
         copy = False
         
@@ -492,14 +501,14 @@ for path in P['paths']:
                                 break;
                         
                 except Exception as e:
-                    log ( 'ADVERTENCIA: No se pudo copiar {}: {} '.format ( filename, str(e)) )
+                    log ( 'ADVERTENCIA: No pude copiar {} ({}) '.format ( filename, str(e)) )
                     
             else:
                 # Si no hay target, es una simple copia.
                 try:
                     shutil.copy ( source_filename, target_filename )
                 except Exception as e:
-                    log ( 'ADVERTENCIA: No se pudo copiar {}: {} '.format ( filename, str(e)) )
+                    log ( 'ADVERTENCIA: No pude copiar {} ({}) '.format ( filename, str(e)) )
                 
 
             try:
@@ -508,9 +517,9 @@ for path in P['paths']:
 
                 shutil.copystat ( source_filename, target_filename )
                 os.chown ( target_filename, st.st_uid, st.st_gid )
-            except PermissionError as e:
+            except Exception as e:
                 # No pudimos cambiarle de permisos!
-                log  ( 'ADVERTENCIA: No pude copiar permisos ni dueño a {} ({}). Continuando.'.format ( target_filename, str(e) ) )
+                log  ( 'ADVERTENCIA: No pude copiar permisos ni dueño de {} ({}).'.format ( filename, str(e) ) )
             
             # Y actualizamos el fichero de registro
             new_registry [ filename ] = timestamp
@@ -527,7 +536,7 @@ for path in P['paths']:
                 target_filename = os.path.join ( target_path, filename )
                 os.unlink ( target_filename )
             except Exception as e:
-                log  ( 'ADVERTENCIA: No pude eliminar {} ({}). Continuando.'.format ( filename, str(e) ) )
+                log  ( 'ADVERTENCIA: No pude eliminar {} ({}).'.format ( filename, str(e) ) )
     
     # Calculamos el tiempo tomado
     elapsed_time = str(timedelta ( seconds = time.time() - start_time ))
