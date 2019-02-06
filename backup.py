@@ -253,7 +253,7 @@ while True:
 
             # Copia histórica?
             elif a == 'h':
-                P['historic_backup'] = True,
+                P['historic_backup'] = True
 
             elif a == 'H':
                 try:
