@@ -180,7 +180,7 @@ while True:
 
             sys.exit()
         elif long_cmd == "version":
-            log ( header() )
+            print (header())
             sys.exit()
 
     # Si empieza con un guión, entonces lo separamos por letras
