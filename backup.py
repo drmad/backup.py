@@ -3,7 +3,7 @@
 backup.py
 =========
 
-Generador de copias de seguridad incrementales e históricas.
+Generador de copias de respaldo incrementales e históricas.
 por Oliver Etchebarne Bejarano
 https://drmad.org
 
@@ -21,18 +21,17 @@ import time, activitylog, json
 
 from datetime import datetime, timedelta
 
-VERSION = 0.999
+VERSION = 0.2
 METADATA_FILENAME = ".backup.metadata"
 
 # Parámetros por defecto, con su ayuda.
 DEFAULT_PARAMETERS = dict(
     paths = ("Rutas donde buscar ficheros.", []),
-    target = ("Ruta destino, donde se guardará el backup.", ''),
+    target = ("Ruta destino, donde se guardará la copia de respaldo.", ''),
     compressor = ("Algoritmo de compresión: 'gzip', 'bzip', o '' (solo copia).", 'gzip'),
     exclude = ("Patrones de exclusión.", []),
-    full_backup = ("¿Generar un backup completo? 'False' crea un backup incremental.", False),
-    historic_backup = ("¿Genera un backup histórico? 'True' crea una subcarpeta por cada backup.", False),
-    historic_backup_dir = ("Nombre de la carpeta de este backup histórico. 'False' genera uno según la fecha y hora.", False),
+    full_backup = ("¿Generar una copia de respaldo completa? 'False' crea un copia de respaldo incremental.", False),
+    historic_backup = ("¿Genera un copia de respaldo histórica? 'True' crea una subcarpeta por cada copia de respaldo.", False),
     follow_symlinks = ("¿'find' debe seguir enlaces simbólicos?", False),
     debug_level = ("Nivel de depuración (0 a 2)", 1),
     debug_file = ("Fichero de mensajes de depuración. 'False' los muestra por STDOUT.", False),
@@ -384,7 +383,7 @@ for path in P['paths']:
     # El path tiene que estar en ABSOLUTO.
     path = os.path.abspath(path)
 
-    # Grabamos el momento que se inició el backup.
+    # Grabamos el momento que se inició la copia de respaldo.
     start_time = time.time()
 
 
@@ -467,7 +466,7 @@ for path in P['paths']:
             # Igual, si no está modificado, lo borramos del erase_list
             del erase_list[filename + target_extension]
 
-            # Si es un historic_backup, hacemos un hardlink del backup anterior
+            # Si es un historic_backup, hacemos un hardlink de la copia de respaldo anterior
             hardlink = True
 
         if copy:
